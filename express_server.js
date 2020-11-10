@@ -57,3 +57,8 @@ function generateRandomString () {
   let rand = Math.random().toString(36).substring(6);
   return rand;
 };
+app.get("/u/:shortURL", (req, res) => {
+  const shortURL = req.params.shortURL;
+  const longURL = urlDatabase[shortURL];
+  res.redirect(longURL);
+});
