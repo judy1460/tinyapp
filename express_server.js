@@ -67,3 +67,9 @@ app.post("/urls/:url/delete", (req, res)=>{
   delete urlDatabase[url];
   res.redirect("/urls");
 });
+
+app.post("/urls/:url", (req, res)=>{
+  const url = req.params.url;
+  urlDatabasete[url]= res.body.updatedLongUrl;
+  res.redirect("/urls");
+});
