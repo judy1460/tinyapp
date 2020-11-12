@@ -104,11 +104,11 @@ app.post("/register",(req, res) =>{
 app.post("/login", (req, res)=>{
   const {email, password} =req.body;
   if(!email || !password){
-    return res.status(400).send("Please provide right email or password")
+    return res.status(403).send("Please provide right email or password")
   }
   for (const id in users){
     if(email === users[id].email){
-      return res.status(400).send("Email is existed.");
+      return res.status(403).send("Email is existed.");
     }
   };
   const id = generateRandomString();
@@ -119,7 +119,7 @@ app.post("/login", (req, res)=>{
 });
 
 app.post('/logout', (req, res)=>{
-  res.clearCookie("username")
+  res.clearCookie("userId")
   res.redirect("/urls")
 });
 const generateRandomString = ()=> Math.random().toString(36).substring(2, 8);
