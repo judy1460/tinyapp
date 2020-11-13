@@ -1,4 +1,6 @@
+const cookieSession = require('cookie-session');
 const express = require("express");
+const bcrypt = require('bcrypt');
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
@@ -28,6 +30,7 @@ return newUrlDatabase;
 app.get("/urls", (req, res) => {
   const templateVars = { urls: urlsForUser(req.cookies["userId"]), user: users[req.cookies["userId"]]};
   res.render("urls_index", templateVars);
+
 });
 
 app.listen(PORT, () => {
@@ -65,8 +68,8 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 app.post("/urls", (req, res) => {
-  console.log(req.body);  // Log the POST request body to the console
-  res.send("Ok");         // Respond with 'Ok' (we will replace this)
+  console.log(req.body);  
+  res.redirect("/urls");        
 });
 
 /*function generateRandomString () {
@@ -116,6 +119,7 @@ app.get('/register', (req, res)=>{
   res.render('register', templateVars);
 });
 
+
 app.post("/register",(req, res) =>{
   const {email, password} =req.body;
   if(!email || !password){
@@ -127,7 +131,12 @@ app.post("/register",(req, res) =>{
     }
   };
   const id = generateRandomString();
-  const user = {id, email, password};
+  const hashPass = bcrypt.hashSync(password, 10);
+  const user = {
+    id, 
+    email, 
+    password : hashPass
+  };
   users[id]= user;
   res.cookie("userId", id);
   res.redirect("/urls")
@@ -140,19 +149,23 @@ app.post("/login", (req, res)=>{
   }
   for (const id in users) {
     if(email === users[id].email) {
-      if(password === users[id].password) {
-         req.cookies["userId"];
-         res.redirect("/urls");
+      if(bcrypt.compareSync(password, users[id].password)) {
+         res.cookie("userId", id);
+         return res.redirect("/urls");
+
     } else {
       return res.status(403).send("Error");
     }
     };
   };
   const id = generateRandomString();
-  const user = {id, email, password};
+  const user = {
+    id,
+    email,
+    password};
   users[id]= user;
   res.cookie("userId", id);
-  res.redirect("/urls")
+  return res.redirect("/urls")
 });
 
 app.post('/logout', (req, res)=>{
@@ -165,12 +178,12 @@ const users = {
   "001": {
     id: "001", 
     email: "mina@example.com", 
-    password: "lovelove"
+    password: bcrypt.hashSync("lovelove", 10)
   },
  "002": {
     id: "002", 
     email: "dana@example.com", 
-    password: "loplop"
+    password: bcrypt.hashSync("loplop", 10)
   }
 }
 
