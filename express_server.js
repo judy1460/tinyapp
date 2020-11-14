@@ -4,15 +4,28 @@ const bcrypt = require('bcrypt');
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
-const cookieParser = require('cookie-parser');
+//const cookieParser = require('cookie-parser');
 const { json } = require("body-parser");
+//const getUserByEmail = require("./helpers");
 app.use(bodyParser.urlencoded({extended: true}));
-app.use(cookieParser())
+//app.use(cookieParser())
+app.use(cookieSession({
+  name: 'session',
+  secret: "mina",
+  maxAge: 24 * 60 * 60 * 1000
+}));
 app.set("view engine", "ejs");
 
 const urlDatabase = {
   b6UTxQ: { longURL: "https://www.tsn.ca", userID: "aJ48lW" },
   i3BoGr: { longURL: "https://www.google.ca", userID: "aJ48lW" }
+};
+const getUserByEmail = function(email, users) {
+  for (let item in users) {
+    if (users[item].email === email) {
+      return users[item];
+    }
+  }
 };
 
 app.get("/", (req, res) => {
@@ -24,11 +37,11 @@ const urlsForUser = function(id) {
     if (urlDatabase[item].userId === id) {
       newUrlDatabase[item] =  urlDatabase[item];
     }
-}
-return newUrlDatabase;
-}
+  }
+  return newUrlDatabase;
+};
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlsForUser(req.cookies["userId"]), user: users[req.cookies["userId"]]};
+  const templateVars = { urls: urlsForUser(req.session.user_id), user: users[req.session.user_id]};
   res.render("urls_index", templateVars);
 
 });
@@ -50,26 +63,26 @@ app.get("/hello", (req, res) => {
   res.send(`a = ${a}`);
  });*/
 
- app.get("/hello", (req, res) => {
+app.get("/hello", (req, res) => {
   const templateVars = { greeting: 'Hello World!' };
   res.render("hello_world", templateVars);
 });
 app.get("/urls/new", (req, res) => {
-  if(req.cookies["userId"]){
+  if (req.session.user_id) {
     res.render("urls_new");
-  }else {
+  } else {
     res.redirect("/login");
   }
   
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.cookies["userId"]]}
+  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.session.user_id]};
   res.render("urls_show", templateVars);
 });
 app.post("/urls", (req, res) => {
-  console.log(req.body);  
-  res.redirect("/urls");        
+  console.log(req.body);
+  res.redirect("/urls");
 });
 
 /*function generateRandomString () {
@@ -82,10 +95,10 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(obj.longURL);
 });
 app.post("/urls/:url/delete", (req, res)=>{
-  if(req.cookies["userId"] !== undefined && req.cookies["userId"] !== null ){
-  const url = req.params.url;
-  delete urlDatabase[url];
-  res.redirect("/urls");
+  if (!req.session.user_id) {
+    const url = req.params.url;
+    delete urlDatabase[url];
+    res.redirect("/urls");
   } else {
     res.redirect("/login");
   }
@@ -104,86 +117,84 @@ app.post("/urls/:url/delete", (req, res)=>{
 
 app.post("/urls/:url", (req, res)=>{
   const url = req.params.url;
-  urlDatabasete[url]= res.body.updatedLongUrl;
+  urlDatabase[url] = res.body.updatedLongUrl;
   res.redirect("/urls");
 });
 
 app.get('/login', (req, res)=>{
  
-  const templateVars = {user:users[req.cookies["userId"]]}
+  const templateVars = {user:users[req.session.user_id]};
   res.render('login', templateVars);
 });
 
 app.get('/register', (req, res)=>{
-  const templateVars = {user:users[req.cookies["userId"]]}
+  const templateVars = {user:users[req.session.user_id]};
   res.render('register', templateVars);
 });
 
 
 app.post("/register",(req, res) =>{
-  const {email, password} =req.body;
-  if(!email || !password){
-    return res.status(400).send("Please provide right email or password")
+  const {email, password} = req.body;
+  if (!email || !password) {
+    return res.status(400).send("Please provide right email or password");
   }
-  for (const id in users){
-    if(email === users[id].email){
-      return res.status(400).send("Email is existed.");
-    }
-  };
+  if (getUserByEmail(email, users)) {
+    return res.status(400).send("Email is existed.");
+  }
+  
   const id = generateRandomString();
   const hashPass = bcrypt.hashSync(password, 10);
   const user = {
-    id, 
-    email, 
+    id,
+    email,
     password : hashPass
   };
-  users[id]= user;
-  res.cookie("userId", id);
-  res.redirect("/urls")
+  users[id] = user;
+  req.session.user_id = id;
+  res.redirect("/urls");
 });
 
 app.post("/login", (req, res)=>{
-  const {email, password} =req.body;
-  if(!email || !password){
-    return res.status(403).send("Please provide right email or password")
+  const {email, password} = req.body;
+  if (!email || !password) {
+    return res.status(403).send("Please provide right email or password");
   }
-  for (const id in users) {
-    if(email === users[id].email) {
-      if(bcrypt.compareSync(password, users[id].password)) {
-         res.cookie("userId", id);
-         return res.redirect("/urls");
+  const currentUser = getUserByEmail(email, users);
+  if (currentUser) {
+    if (bcrypt.compareSync(password, currentUser.password)) {
+      req.session.user_id = currentUser.id;
+      return res.redirect("/urls");
 
     } else {
       return res.status(403).send("Error");
     }
-    };
-  };
+  }
   const id = generateRandomString();
   const user = {
     id,
     email,
     password};
-  users[id]= user;
-  res.cookie("userId", id);
-  return res.redirect("/urls")
+  users[id] = user;
+  req.session.user_id = id;
+  return res.redirect("/urls");
 });
 
 app.post('/logout', (req, res)=>{
-  res.clearCookie("userId")
-  res.redirect("/urls")
+  req.session = null;
+  res.redirect("/urls");
 });
 
 const generateRandomString = ()=> Math.random().toString(36).substring(2, 8);
-const users = { 
+const users = {
   "001": {
-    id: "001", 
-    email: "mina@example.com", 
+    id: "001",
+    email: "mina@example.com",
     password: bcrypt.hashSync("lovelove", 10)
   },
- "002": {
-    id: "002", 
-    email: "dana@example.com", 
+  "002": {
+    id: "002",
+    email: "dana@example.com",
     password: bcrypt.hashSync("loplop", 10)
   }
-}
+};
 
