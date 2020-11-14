@@ -115,10 +115,11 @@ app.post("/urls/:url/delete", (req, res)=>{
 
 })*/
 
-app.post("/urls/:url", (req, res)=>{
-  const url = req.params.url;
-  urlDatabase[url] = res.body.updatedLongUrl;
-  res.redirect("/urls");
+app.post("/urls/:shortURL", (req, res)=>{
+  const shortURL = req.params.shortURL;
+  const longURL = urlDatabase[shortURL].longURL;
+  //urlDatabase[url] = res.body.updatedLongUrl;
+  res.redirect(longURL);
 });
 
 app.get('/login', (req, res)=>{
