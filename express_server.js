@@ -16,6 +16,7 @@ app.use(cookieSession({
 }));
 app.set("view engine", "ejs");
 
+// Database
 const urlDatabase = {
   b6UTxQ: { longURL: "https://www.tsn.ca", userID: "aJ48lW" },
   i3BoGr: { longURL: "https://www.google.ca", userID: "aJ48lW" }
@@ -29,7 +30,12 @@ const getUserByEmail = function(email, users) {
 };
 
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  id = req.session.user_id;
+  if (id){
+    res.redirect("/urls");
+  } else {
+    return res.redirect("/login");
+  }
 });
 const urlsForUser = function(id) {
   let newUrlDatabase = {};
@@ -50,26 +56,11 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
-
-/*app.get("/set", (req, res) => {
-  const a = 1;
-  res.send(`a = ${a}`);
- });
- 
- app.get("/fetch", (req, res) => {
-  res.send(`a = ${a}`);
- });*/
-
-app.get("/hello", (req, res) => {
-  const templateVars = { greeting: 'Hello World!' };
-  res.render("hello_world", templateVars);
-});
+//Only logged in users can visit the page to create new URL
 app.get("/urls/new", (req, res) => {
   if (req.session.user_id) {
-    res.render("urls_new");
+    const templateVars = {user: users[req.session.user_id]};
+    res.render("urls_new",templateVars);
   } else {
     res.redirect("/login");
   }
@@ -123,7 +114,6 @@ app.post("/urls/:shortURL", (req, res)=>{
 });
 
 app.get('/login', (req, res)=>{
- 
   const templateVars = {user:users[req.session.user_id]};
   res.render('login', templateVars);
 });
@@ -170,14 +160,6 @@ app.post("/login", (req, res)=>{
       return res.status(403).send("Error");
     }
   }
-  const id = generateRandomString();
-  const user = {
-    id,
-    email,
-    password};
-  users[id] = user;
-  req.session.user_id = id;
-  return res.redirect("/urls");
 });
 
 app.post('/logout', (req, res)=>{
